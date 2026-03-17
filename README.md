@@ -40,9 +40,9 @@ skevals report judgments.json results/             # -> report.md
 
 | Flag | Description |
 |------|-------------|
-| `--lite` | Single-turn, text-only, haiku judge (default) |
-| `--full` | Multi-turn, tool use, sonnet judge |
-| `--judge-model <model>` | Override judge model (sonnet/haiku/opus) |
+| `--lite` | Single-turn, text-only, truncated judge input (default) |
+| `--full` | Multi-turn, tool use, full judge input |
+| `--judge-model <model>` | Override judge model (default: same as `--model`) |
 | `--model <model>` | Model for analysis, generation, and CLI sessions |
 | `--budget <usd>` | Max budget per CLI session (default: 0.50) |
 | `--scenarios <n>` | Number of test scenarios to generate |
@@ -53,21 +53,23 @@ skevals report judgments.json results/             # -> report.md
 
 - `--max-turns 1` on Claude CLI sessions — single-turn text responses only
 - Scenarios constrained to questions answerable without file creation
-- Judge uses haiku with truncated outputs and capped tokens
+- Judge input truncated to 8K chars, output capped at 2048 tokens
 - Tests **knowledge and approach quality**
 
 ### Full mode
 
 - Unrestricted Claude CLI sessions with tool use
 - Scenarios can involve file creation, multi-step workflows
-- Judge uses sonnet with full outputs
+- Full outputs sent to judge, no truncation
 - Tests **execution quality and tool-use behavior**
+
+Both modes use the same `--model` for judging by default (sonnet). Override with `--judge-model haiku` for cheaper judging.
 
 ## Baseline results
 
 ### web-scraping skill (3 scenarios, sonnet runner)
 
-**Lite mode:**
+**Lite mode** (haiku judge):
 
 | Metric | Control | Treatment | Delta |
 |--------|---------|-----------|-------|
@@ -76,7 +78,7 @@ skevals report judgments.json results/             # -> report.md
 | CLI tokens | ~47K/session | ~24K/session | -49% |
 | Pairwise | 0 wins | 0 wins | 3 ties |
 
-Total CLI tokens: 142,644. Total cost: ~$0.38.
+Total CLI tokens: 142,644. Total cost: ~$0.46 (CLI + SDK).
 
 **Full mode:**
 

@@ -205,7 +205,7 @@ def eval_skill(
     scenarios: Annotated[int, typer.Option(help="Number of scenarios to generate")] = 6,
     model: Annotated[str, typer.Option(help="Model for analysis/generation and Claude sessions")] = "sonnet",
     budget: Annotated[float, typer.Option(help="Max budget per session (USD)")] = 0.50,
-    lite: Annotated[bool, typer.Option("--lite", help="Lite mode: single-turn, text-only, haiku judge (default)")] = False,
+    lite: Annotated[bool, typer.Option("--lite", help="Lite mode: single-turn, text-only, truncated judge input (default)")] = False,
     full: Annotated[bool, typer.Option("--full", help="Full mode: multi-turn, tool use, sonnet judge")] = False,
     judge_model: Annotated[Optional[str], typer.Option(help="Model for judging (overrides mode default)")] = None,
 ) -> None:
@@ -227,7 +227,7 @@ def eval_skill(
 
     # Resolve judge model: explicit flag > mode default
     if judge_model is None:
-        j_model = "haiku" if mode == EvalMode.lite else model
+        j_model = model
     else:
         j_model = judge_model
 
