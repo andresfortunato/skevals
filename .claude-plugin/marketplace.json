@@ -1,20 +1,18 @@
 {
-  "marketplace": {
-    "name": "skevals",
-    "description": "A/B testing framework for Claude Code skills",
-    "owner": {
-      "name": "Andres Fortunato"
-    },
-    "plugins": [
-      {
-        "name": "skevals",
-        "description": "A/B testing for Claude Code skills — measures whether skills improve output quality and at what token/cost overhead",
-        "version": "0.1.0",
-        "source": {
-          "source": "github",
-          "repo": "andresfortunato/skevals"
-        }
+  "name": "skevals",
+  "description": "A/B testing framework for Claude Code skills",
+  "owner": {
+    "name": "Andres Fortunato"
+  },
+  "plugins": [
+    {
+      "name": "skevals",
+      "description": "A/B testing for Claude Code skills — measures whether skills improve output quality and at what token/cost overhead",
+      "version": "0.1.0",
+      "source": {
+        "source": "github",
+        "repo": "andresfortunato/skevals"
       }
-    ]
-  }
+    }
+  ]
 }
