@@ -1,0 +1,24 @@
+{
+  "type": "result",
+  "subtype": "success",
+  "result": "Here is the sample output from Claude.\n\n```python\ndef hello():\n    print('hello world')\n```\n\nThis function prints hello world.",
+  "session_id": "test-session-123",
+  "duration_ms": 5000,
+  "duration_api_ms": 4500,
+  "total_cost_usd": 0.0123,
+  "usage": {
+    "input_tokens": 10,
+    "output_tokens": 200,
+    "cache_read_input_tokens": 500,
+    "cache_creation_input_tokens": 0
+  },
+  "modelUsage": {
+    "claude-sonnet-4-20250514": {
+      "inputTokens": 1500,
+      "outputTokens": 200,
+      "cacheReadInputTokens": 500,
+      "cacheCreationInputTokens": 0,
+      "costUSD": 0.0123
+    }
+  }
+}

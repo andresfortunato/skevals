@@ -1,0 +1,8 @@
+# Learning trigger index — searched by UserPromptSubmit hook
+# Each entry maps a learning file to its trigger keywords
+# Format:
+#   - file: <filename>.md
+#     triggers: "keyword1 keyword2 keyword3"
+
+- file: eval-command-name-hook-conflict.md
+  triggers: "hook security command name typer cli builtin"
