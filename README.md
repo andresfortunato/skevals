@@ -8,11 +8,27 @@ skevals runs identical tasks through Claude with and without a skill loaded, the
 
 ## Install
 
+### As a Claude Code plugin (recommended)
+
 ```bash
+# Add the marketplace
+/plugin marketplace add andresfortunato/skevals
+
+# Install the plugin
+/plugin install skevals
+```
+
+Then use it from any Claude Code session — Claude will invoke skevals automatically when you ask to evaluate a skill, or you can call it directly with `/skevals`.
+
+### As a standalone CLI
+
+```bash
+git clone https://github.com/andresfortunato/skevals.git
+cd skevals
 uv sync
 ```
 
-Requires `ANTHROPIC_API_KEY` in `.env` or environment.
+Both methods require `ANTHROPIC_API_KEY` in your environment or a `.env` file.
 
 ## Usage
 

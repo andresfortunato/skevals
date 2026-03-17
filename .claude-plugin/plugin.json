@@ -1,0 +1,12 @@
+{
+  "name": "skevals",
+  "version": "0.1.0",
+  "description": "A/B testing for Claude Code skills — measures whether skills improve output quality and at what token/cost overhead",
+  "author": {
+    "name": "Andres Fortunato",
+    "email": "andfortu@gmail.com"
+  },
+  "repository": "https://github.com/andresfortunato/skevals",
+  "license": "MIT",
+  "keywords": ["evaluation", "skills", "testing", "a/b-testing"]
+}
