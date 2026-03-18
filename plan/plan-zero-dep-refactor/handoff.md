@@ -6,41 +6,34 @@
 |-------|--------|
 | Phase 1: Backend + schemas | Done |
 | Phase 2: Pipeline stages | Done |
-| Phase 3: CLI + plugin integration | **Next** |
-| Phase 4: Tests + cleanup | Pending |
+| Phase 3: CLI + plugin integration | Done |
+| Phase 4: Tests + cleanup | **Next** |
 
-### Files created (all in `scripts/`):
-- `schemas.py` — 7 JSON Schema dicts (skill analysis, scenarios, rubric, pairwise, judgment, report, verdict)
-- `backend.py` — dual LLM backend: API (urllib) or CLI (claude --print --json-schema), auto-detects based on ANTHROPIC_API_KEY
-- `analyzer.py` — parse_skill_dir() + analyze_skill()
-- `generator.py` — generate_scenarios() with lite/full mode constraints
-- `runner.py` — merged executor + orchestrator + workspace (run_session, run_all_scenarios, create_workspace)
-- `judge.py` — score_session() + compare_pair() + judge_scenario()
-- `reporter.py` — generate_report() + render_markdown() with context health detection
-- `test_backend.py` — 18 tests, all passing (CLI live test confirmed working)
+### Files created/modified in Phase 3:
+- `scripts/skevals.py` — argparse CLI with 6 subcommands (eval, analyze, generate, run, judge, report) + --backend flag
+- `skills/skevals/SKILL.md` — updated: uv run → python3, removed setup section, updated allowed-tools
 
 ### Verified:
-- All modules import cleanly with zero pip dependencies
-- parse_skill_dir() tested on `skills/skevals/` — correct output
-- reporter._stat() and render_markdown() tested with mock data — correct output
-- Backend CLI live test returns `{'verdict': 'test passed'}` via claude --json-schema
+- `python3 scripts/skevals.py --help` shows all 6 subcommands
+- `python3 scripts/skevals.py eval --help` shows all options
+- `python3 scripts/skevals.py analyze skills/skevals/` — end-to-end success, produced analysis.json with 10 capabilities, 6 dimensions
+- One transient CLI error observed (response without structured_output) — resolved on retry. Added `is_error` check to backend.py for better error reporting.
 
 ## Read Order
 
 1. This file
-2. `plan.md` — Phase 3 section for CLI + plugin integration details
+2. `plan.md` — Phase 4 section for tests + cleanup details
 
 ## Start At
 
-Phase 3: CLI + plugin integration
-- Create `scripts/skevals.py` — argparse CLI with 6 subcommands (eval, analyze, generate, run, judge, report)
-- Update `skills/skevals/SKILL.md` — change invocation from `uv run` to `python scripts/skevals.py`
-- Update `README.md`
+Phase 4: Tests + cleanup
+- Update tests in `tests/` to import from `scripts/` instead of `src/skevals/`
+- Remove `src/skevals/` directory
+- Simplify or remove `pyproject.toml`
+- Run `claude plugin validate .` to verify plugin structure
 
 ## Key Constraints
 
-- **All modules use `sys.path.insert(0, os.path.dirname(__file__))` for imports** — this lets them import sibling modules (backend, schemas) without being a proper package. Phase 3's CLI entry point must also do this.
-- **EvalMode is now a string literal** ("lite" or "full"), not an enum. The CLI should accept `--lite` / `--full` flags and pass the string.
-- **Pydantic → dict throughout** — all pipeline functions take/return plain dicts. JSON serialization is `json.dumps(data, indent=2)`.
-- **The reporter needs a `judge_scenario()` function** — it was added to judge.py as a convenience that combines rubric + pairwise for one scenario. The CLI's `eval` subcommand should use it.
-- **SKILL.md description is multi-line YAML** — parse_skill_dir() intentionally skips multi-line descriptions (">", "|"). The LLM reads the full SKILL.md content anyway.
+- **Pyright warnings are expected**: `scripts/` uses `sys.path.insert()` for sibling imports which Pyright can't resolve statically. These work at runtime.
+- **`--json-schema` needs `--max-turns 2`**: The CLI backend sets this automatically. Transient failures can occur; consider adding retry logic in Phase 4 if they persist.
+- **`allowed-tools` in SKILL.md**: Changed to `Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/*)` — this pattern must match the actual invocation.

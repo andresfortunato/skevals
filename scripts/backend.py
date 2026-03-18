@@ -196,6 +196,11 @@ def _cli_call(
 
     response = json.loads(result.stdout)
 
+    # Check for errors in the response
+    if response.get("is_error"):
+        errors = response.get("errors") or response.get("result", "Unknown error")
+        raise RuntimeError(f"claude CLI returned an error: {errors}")
+
     # --json-schema puts validated output in "structured_output"
     structured = response.get("structured_output")
     if structured is not None:

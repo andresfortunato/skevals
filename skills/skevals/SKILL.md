@@ -6,29 +6,21 @@ description: >
   evaluate a skill, test a skill, benchmark a skill, compare skill performance,
   or measure skill impact. Also use when the user says "evaluate", "eval",
   "benchmark", or "test" in the context of Claude Code skills.
-allowed-tools: Bash(uv run --directory *)
+allowed-tools: Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/*)
 ---
 
 # skevals — Skill Evaluation
 
 Run A/B evaluations of Claude Code skills. Compares Claude's output with and without a skill loaded, using LLM-as-judge scoring.
 
-## Setup (first run only)
-
-Before first use, ensure dependencies are installed:
-
-```bash
-uv sync --directory ${CLAUDE_PLUGIN_ROOT}
-```
-
-The user must have `ANTHROPIC_API_KEY` set in their environment or in a `.env` file in their working directory.
+No setup required — zero dependencies, runs with Python stdlib only.
 
 ## Commands
 
 ### Full pipeline (most common)
 
 ```bash
-uv run --directory ${CLAUDE_PLUGIN_ROOT} skevals eval <skill-path> [options]
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/skevals.py eval <skill-path> [options]
 ```
 
 **Options:**
@@ -39,24 +31,25 @@ uv run --directory ${CLAUDE_PLUGIN_ROOT} skevals eval <skill-path> [options]
 - `--judge-model <model>` — Override judge model (default: same as --model)
 - `--budget <usd>` — Max budget per CLI session (default: 0.50)
 - `--output-dir <path>` — Where to save artifacts (default: ./eval-output)
+- `--backend api|cli` — Force LLM backend (default: auto-detect from ANTHROPIC_API_KEY)
 
 ### Individual steps
 
 ```bash
 # Analyze skill and generate eval dimensions
-uv run --directory ${CLAUDE_PLUGIN_ROOT} skevals analyze <skill-path>
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/skevals.py analyze <skill-path>
 
 # Generate test scenarios from analysis
-uv run --directory ${CLAUDE_PLUGIN_ROOT} skevals generate analysis.json --count 6
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/skevals.py generate analysis.json --count 6
 
 # Run A/B sessions (control vs treatment)
-uv run --directory ${CLAUDE_PLUGIN_ROOT} skevals run scenarios.json <skill-path>
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/skevals.py run scenarios.json <skill-path>
 
 # Judge session results
-uv run --directory ${CLAUDE_PLUGIN_ROOT} skevals judge results/ --analysis-path analysis.json
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/skevals.py judge results/ --analysis-path analysis.json
 
 # Generate comparison report
-uv run --directory ${CLAUDE_PLUGIN_ROOT} skevals report judgments.json results/
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/skevals.py report judgments.json results/
 ```
 
 ## When to use which mode
@@ -84,13 +77,13 @@ When the user asks to evaluate a skill:
 
 ```bash
 # Quick eval of a skill
-uv run --directory ${CLAUDE_PLUGIN_ROOT} skevals eval ~/.claude/skills/web-scraping/ --scenarios 3 --lite
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/skevals.py eval ~/.claude/skills/web-scraping/ --scenarios 3 --lite
 
 # Thorough eval
-uv run --directory ${CLAUDE_PLUGIN_ROOT} skevals eval ~/.claude/skills/web-scraping/ --scenarios 6 --full
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/skevals.py eval ~/.claude/skills/web-scraping/ --scenarios 6 --full
 
 # Eval with specific model
-uv run --directory ${CLAUDE_PLUGIN_ROOT} skevals eval ~/.claude/skills/my-skill/ --model sonnet --scenarios 3
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/skevals.py eval ~/.claude/skills/my-skill/ --model sonnet --scenarios 3
 ```
 
 After the eval completes, read `eval-output/report.md` and present the key findings to the user:

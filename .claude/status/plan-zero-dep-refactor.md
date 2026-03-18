@@ -1,6 +1,6 @@
 # Plan: Zero Dep Refactor
 
-Phase: 3 — CLI + plugin integration
-Current task: Create scripts/skevals.py argparse entry point
+Phase: 4 — Tests + cleanup
+Current task: Update tests, remove src/skevals/, clean pyproject.toml
 Blocked: no
 Last updated: 2026-03-18
