@@ -24,9 +24,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/skevals.py eval <skill-path> [options]
 ```
 
 **Options:**
-- `--scenarios N` — Number of test scenarios (default: 6)
-- `--lite` — Single-turn text evaluation, fast and cheap (default)
-- `--full` — Multi-turn with tool use, thorough but expensive
+- `--scenarios N` — Number of test scenarios (default: 3)
 - `--model <model>` — Model alias: sonnet, opus, haiku (default: sonnet)
 - `--judge-model <model>` — Override judge model (default: same as --model)
 - `--budget <usd>` — Max budget per CLI session (default: 0.50)
@@ -40,7 +38,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/skevals.py eval <skill-path> [options]
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/skevals.py analyze <skill-path>
 
 # Generate test scenarios from analysis
-python3 ${CLAUDE_PLUGIN_ROOT}/scripts/skevals.py generate analysis.json --count 6
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/skevals.py generate analysis.json --count 3
 
 # Run A/B sessions (control vs treatment)
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/skevals.py run scenarios.json <skill-path>
@@ -51,11 +49,6 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/skevals.py judge results/ --analysis-path 
 # Generate comparison report
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/skevals.py report judgments.json results/
 ```
-
-## When to use which mode
-
-- **`--lite`** (default): Quick feedback on whether a skill adds value. Single-turn, text-only responses. ~$0.60 for 3 scenarios. Use for iterating on skill design.
-- **`--full`**: Thorough evaluation with tool use. ~$1.50+ for 3 scenarios. Use for final validation before publishing a skill.
 
 ## Interpreting results
 
@@ -76,11 +69,11 @@ The report (`report.md`) contains:
 When the user asks to evaluate a skill:
 
 ```bash
-# Quick eval of a skill
-python3 ${CLAUDE_PLUGIN_ROOT}/scripts/skevals.py eval ~/.claude/skills/web-scraping/ --scenarios 3 --lite
+# Standard eval (3 scenarios)
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/skevals.py eval ~/.claude/skills/web-scraping/ --scenarios 3
 
-# Thorough eval
-python3 ${CLAUDE_PLUGIN_ROOT}/scripts/skevals.py eval ~/.claude/skills/web-scraping/ --scenarios 6 --full
+# Larger eval for higher confidence
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/skevals.py eval ~/.claude/skills/web-scraping/ --scenarios 6
 
 # Eval with specific model
 python3 ${CLAUDE_PLUGIN_ROOT}/scripts/skevals.py eval ~/.claude/skills/my-skill/ --model sonnet --scenarios 3

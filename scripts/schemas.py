@@ -137,7 +137,7 @@ SCENARIO_SET_SCHEMA: dict = {
 }
 
 # ---------------------------------------------------------------------------
-# Judging
+# Judging  (combined: rubric scoring + pairwise in a single LLM call)
 # ---------------------------------------------------------------------------
 
 _DIMENSION_SCORE_SCHEMA: dict = {
@@ -151,9 +151,9 @@ _DIMENSION_SCORE_SCHEMA: dict = {
     },
 }
 
-RUBRIC_RESULT_SCHEMA: dict = {
+_RUBRIC_RESULT_SCHEMA: dict = {
     "type": "object",
-    "required": ["scores", "weighted_overall", "reasoning"],
+    "required": ["scores", "reasoning"],
     "additionalProperties": False,
     "properties": {
         "scores": {
@@ -165,45 +165,28 @@ RUBRIC_RESULT_SCHEMA: dict = {
             "items": {"type": "boolean"},
             "description": "Pass/fail for each expectation",
         },
-        "weighted_overall": {
-            "type": "number",
-            "description": "Weighted average score",
-        },
         "reasoning": {"type": "string"},
     },
 }
 
-PAIRWISE_RESULT_SCHEMA: dict = {
+# The LLM sees Output 1 and Output 2 (randomly shuffled).
+# It scores both on rubrics, then picks a pairwise winner.
+COMBINED_JUDGMENT_SCHEMA: dict = {
     "type": "object",
-    "required": ["winner", "label_map", "reasoning"],
+    "required": ["output_1_rubric", "output_2_rubric", "winner", "comparison_reasoning"],
     "additionalProperties": False,
     "properties": {
+        "output_1_rubric": _RUBRIC_RESULT_SCHEMA,
+        "output_2_rubric": _RUBRIC_RESULT_SCHEMA,
         "winner": {
             "type": "string",
-            "enum": ["control", "treatment", "tie"],
+            "enum": ["output_1", "output_2", "tie"],
+            "description": "Which output is better overall, or tie",
         },
-        "label_map": {
-            "type": "object",
-            "description": "Maps 'A'/'B' to 'control'/'treatment'",
-            "additionalProperties": {"type": "string"},
+        "comparison_reasoning": {
+            "type": "string",
+            "description": "Why the winner was chosen (or why it's a tie)",
         },
-        "reasoning": {"type": "string"},
-        "strengths_a": {"type": "array", "items": {"type": "string"}},
-        "weaknesses_a": {"type": "array", "items": {"type": "string"}},
-        "strengths_b": {"type": "array", "items": {"type": "string"}},
-        "weaknesses_b": {"type": "array", "items": {"type": "string"}},
-    },
-}
-
-SCENARIO_JUDGMENT_SCHEMA: dict = {
-    "type": "object",
-    "required": ["scenario_id", "control_rubric", "treatment_rubric", "pairwise"],
-    "additionalProperties": False,
-    "properties": {
-        "scenario_id": {"type": "string"},
-        "control_rubric": RUBRIC_RESULT_SCHEMA,
-        "treatment_rubric": RUBRIC_RESULT_SCHEMA,
-        "pairwise": PAIRWISE_RESULT_SCHEMA,
     },
 }
 

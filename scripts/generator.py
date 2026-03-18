@@ -15,20 +15,17 @@ sys.path.insert(0, os.path.dirname(__file__))
 from backend import structured_call
 from schemas import SCENARIO_SET_SCHEMA
 
-_LITE_CONSTRAINTS = """
-## IMPORTANT constraints for this eval:
-- Scenarios MUST be answerable in a single text response — no file creation, no multi-step tool use
-- Prompts should ask for code snippets, explanations, analysis, or advice — NOT "build me a project"
-- ground_files: max 2 files, each under 500 characters. Use small representative samples, not full files.
-- max_turns: always 1
-- The goal is to test knowledge and approach quality, not tool-use behavior
-"""
-
-_FULL_CONSTRAINTS = """
-## Constraints:
-- ground_files: include realistic content, not stubs. Each has a path and content.
-- max_turns: 1 for single-turn (default), >1 only if the skill specifically adds multi-turn value
-- follow_up_strategy: null for single-turn
+_SCENARIO_CONSTRAINTS = """
+## Scenario design constraints:
+- Each scenario should be a **small, focused, controlled task** — a single function, a short script,
+  a specific refactor, a targeted bug fix. NOT "build me a project" or "create an app."
+- ground_files: include realistic but concise content. Each file should be under 1000 characters.
+  Provide just enough context for the task — a small module, a config snippet, a test file.
+- max_turns: use 1 for tasks answerable in a single response. Use 2-3 only if the skill specifically
+  adds multi-turn value (e.g., iterative refinement, test-then-fix cycles).
+- The goal is to test whether the skill changes Claude's **approach and quality**, not whether
+  Claude can complete a large project. Keep output naturally bounded.
+- Prompts should be what a real user would type, not meta-instructions about skills.
 """
 
 
@@ -36,15 +33,8 @@ def generate_scenarios(
     analysis: dict,
     count: int = 6,
     model: str = "sonnet",
-    mode: str = "lite",
 ) -> dict:
     """Generate evaluation scenarios from a skill analysis.
-
-    Args:
-        analysis: Dict from analyze_skill() with manifest, capabilities, dimensions.
-        count: Number of scenarios to generate.
-        model: Model alias or full ID.
-        mode: "lite" or "full".
 
     Returns dict matching SCENARIO_SET_SCHEMA.
     """
@@ -56,8 +46,6 @@ def generate_scenarios(
     capabilities_desc = "\n".join(
         f"- {c}" for c in analysis["capabilities"]
     )
-
-    mode_constraints = _LITE_CONSTRAINTS if mode == "lite" else _FULL_CONSTRAINTS
 
     # The LLM only needs to generate the scenarios list — we add skill_name ourselves
     scenarios_schema = {
@@ -82,11 +70,10 @@ def generate_scenarios(
 - **dimension_id**: which dimension this primarily tests (distribute across dimensions)
 - **prompt**: a realistic user prompt that exercises the skill's domain. Be specific and concrete.
 - **expectations**: 2-4 verifiable things the output should contain or achieve
-{mode_constraints}
+{_SCENARIO_CONSTRAINTS}
 ## Key principles:
 - Scenarios should be tasks where a skilled Claude would differ noticeably from an unskilled one
 - Include both "the skill should clearly help" and "edge case" scenarios
-- Prompts should be what a real user would type, not meta-instructions about skills
 """
 
     result = structured_call(prompt, scenarios_schema, model=model)
@@ -105,7 +92,7 @@ if __name__ == "__main__":
     import sys as _sys
 
     if len(_sys.argv) < 2:
-        print("Usage: python scripts/generator.py <analysis.json> [--count N] [--model MODEL] [--mode lite|full]")
+        print("Usage: python scripts/generator.py <analysis.json> [--count N] [--model MODEL]")
         _sys.exit(1)
 
     with open(_sys.argv[1]) as f:
@@ -113,15 +100,12 @@ if __name__ == "__main__":
 
     count_arg = 6
     model_arg = "sonnet"
-    mode_arg = "lite"
     args = _sys.argv[2:]
     for i, arg in enumerate(args):
         if arg == "--count" and i + 1 < len(args):
             count_arg = int(args[i + 1])
         elif arg == "--model" and i + 1 < len(args):
             model_arg = args[i + 1]
-        elif arg == "--mode" and i + 1 < len(args):
-            mode_arg = args[i + 1]
 
-    scenarios = generate_scenarios(analysis_data, count=count_arg, model=model_arg, mode=mode_arg)
+    scenarios = generate_scenarios(analysis_data, count=count_arg, model=model_arg)
     print(json.dumps(scenarios, indent=2))

@@ -52,9 +52,7 @@ def cmd_generate(args: argparse.Namespace) -> None:
         analysis = json.load(f)
 
     print(f"Generating {args.count} scenarios for {analysis['manifest']['name']}...")
-    scenario_set = generate_scenarios(
-        analysis, count=args.count, model=args.model, mode=args.mode,
-    )
+    scenario_set = generate_scenarios(analysis, count=args.count, model=args.model)
     print(f"  Generated {len(scenario_set['scenarios'])} scenarios")
 
     output_path = args.output or os.path.join(os.getcwd(), "scenarios.json")
@@ -80,13 +78,12 @@ def cmd_run(args: argparse.Namespace) -> None:
         model=args.model,
         budget=args.budget,
         timeout=args.timeout,
-        mode=args.mode,
     )
     print(f"Results saved to {args.output_dir}")
 
 
 def cmd_judge(args: argparse.Namespace) -> None:
-    """Judge session results using rubric and pairwise comparison."""
+    """Judge session results using combined rubric + pairwise comparison."""
     from judge import judge_scenario
 
     # Load results index
@@ -132,8 +129,6 @@ def cmd_judge(args: argparse.Namespace) -> None:
         judgment = judge_scenario(
             scenario, control, treatment, dimensions,
             model=args.model,
-            max_output_chars=args.max_output_chars,
-            max_tokens=args.max_tokens,
         )
         judgments.append(judgment)
 
@@ -190,36 +185,24 @@ def cmd_eval_skill(args: argparse.Namespace) -> None:
     from reporter import generate_report, render_markdown
     from runner import run_all_scenarios
 
-    # Resolve mode
-    mode = "full" if args.full else "lite"
-
-    # Resolve judge model
     j_model = args.judge_model or args.model
-
-    # Lite mode judge settings
-    judge_max_output_chars = 8000 if mode == "lite" else 0
-    judge_max_tokens = 2048 if mode == "lite" else 16384
 
     os.makedirs(args.output_dir, exist_ok=True)
 
-    print(f"\nMode: {mode} | Model: {args.model} | Judge: {j_model}")
+    print(f"\nModel: {args.model} | Judge: {j_model}")
 
     # Step 1: Analyze
     print("\n--- Step 1/5: Analyzing skill ---")
     manifest = parse_skill_dir(args.skill_path)
     analysis = analyze_skill(manifest, model=args.model)
-    analysis_path = os.path.join(args.output_dir, "analysis.json")
-    with open(analysis_path, "w") as f:
+    with open(os.path.join(args.output_dir, "analysis.json"), "w") as f:
         json.dump(analysis, f, indent=2)
     print(f"  {len(analysis['capabilities'])} capabilities, {len(analysis['dimensions'])} dimensions")
 
     # Step 2: Generate scenarios
     print("\n--- Step 2/5: Generating scenarios ---")
-    scenario_set = generate_scenarios(
-        analysis, count=args.scenarios, model=args.model, mode=mode,
-    )
-    scenarios_path = os.path.join(args.output_dir, "scenarios.json")
-    with open(scenarios_path, "w") as f:
+    scenario_set = generate_scenarios(analysis, count=args.scenarios, model=args.model)
+    with open(os.path.join(args.output_dir, "scenarios.json"), "w") as f:
         json.dump(scenario_set, f, indent=2)
     print(f"  {len(scenario_set['scenarios'])} scenarios generated")
 
@@ -232,7 +215,6 @@ def cmd_eval_skill(args: argparse.Namespace) -> None:
         model=args.model,
         budget=args.budget,
         timeout=args.timeout,
-        mode=mode,
     )
 
     # Step 4: Judge
@@ -248,13 +230,10 @@ def cmd_eval_skill(args: argparse.Namespace) -> None:
             scenario, control, treatment,
             analysis["dimensions"],
             model=j_model,
-            max_output_chars=judge_max_output_chars,
-            max_tokens=judge_max_tokens,
         )
         judgments.append(judgment)
 
-    judgments_path = os.path.join(args.output_dir, "judgments.json")
-    with open(judgments_path, "w") as f:
+    with open(os.path.join(args.output_dir, "judgments.json"), "w") as f:
         json.dump(judgments, f, indent=2)
 
     # Step 5: Report
@@ -305,13 +284,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_eval = sub.add_parser("eval", help="Run full evaluation pipeline")
     p_eval.add_argument("skill_path", help="Path to skill directory")
     p_eval.add_argument("--output-dir", default="./eval-output", help="Output directory (default: ./eval-output)")
-    p_eval.add_argument("--scenarios", type=int, default=6, help="Number of scenarios (default: 6)")
+    p_eval.add_argument("--scenarios", type=int, default=3, help="Number of scenarios (default: 3)")
     p_eval.add_argument("--model", default="sonnet", help="Model for analysis/generation/sessions (default: sonnet)")
     p_eval.add_argument("--judge-model", default=None, help="Override judge model")
     p_eval.add_argument("--budget", type=float, default=0.50, help="Max budget per session in USD (default: 0.50)")
     p_eval.add_argument("--timeout", type=int, default=300, help="Session timeout in seconds (default: 300)")
-    p_eval.add_argument("--lite", action="store_true", default=True, help="Lite mode: single-turn, text-only (default)")
-    p_eval.add_argument("--full", action="store_true", default=False, help="Full mode: multi-turn, tool use")
     p_eval.set_defaults(func=cmd_eval_skill)
 
     # --- analyze ---
@@ -324,10 +301,9 @@ def build_parser() -> argparse.ArgumentParser:
     # --- generate ---
     p_gen = sub.add_parser("generate", help="Generate scenarios from an analysis")
     p_gen.add_argument("analysis_path", help="Path to analysis.json")
-    p_gen.add_argument("--count", type=int, default=6, help="Number of scenarios (default: 6)")
+    p_gen.add_argument("--count", type=int, default=3, help="Number of scenarios (default: 3)")
     p_gen.add_argument("--output", "-o", help="Output file path (default: scenarios.json)")
     p_gen.add_argument("--model", default="sonnet", help="Model for generation (default: sonnet)")
-    p_gen.add_argument("--mode", choices=["lite", "full"], default="lite", help="Mode (default: lite)")
     p_gen.set_defaults(func=cmd_generate)
 
     # --- run ---
@@ -338,7 +314,6 @@ def build_parser() -> argparse.ArgumentParser:
     p_run.add_argument("--model", default="sonnet", help="Model for sessions (default: sonnet)")
     p_run.add_argument("--budget", type=float, default=0.50, help="Max budget per session (default: 0.50)")
     p_run.add_argument("--timeout", type=int, default=300, help="Session timeout in seconds (default: 300)")
-    p_run.add_argument("--mode", choices=["lite", "full"], default="lite", help="Mode (default: lite)")
     p_run.set_defaults(func=cmd_run)
 
     # --- judge ---
@@ -348,8 +323,6 @@ def build_parser() -> argparse.ArgumentParser:
     p_judge.add_argument("--scenarios-path", help="Path to scenarios.json for expectations")
     p_judge.add_argument("--output", "-o", help="Output file path (default: judgments.json)")
     p_judge.add_argument("--model", default="sonnet", help="Model for judging (default: sonnet)")
-    p_judge.add_argument("--max-output-chars", type=int, default=0, help="Truncate outputs before judging")
-    p_judge.add_argument("--max-tokens", type=int, default=16384, help="Max judge output tokens")
     p_judge.set_defaults(func=cmd_judge)
 
     # --- report ---

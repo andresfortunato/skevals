@@ -98,14 +98,12 @@ def run_session(
     model: str = "sonnet",
     budget: float = 0.50,
     timeout: int = 300,
-    mode: str = "lite",
 ) -> dict:
     """Run a single Claude session and return a session result dict.
 
     A/B control mechanism:
     - Control: --disable-slash-commands (no skills loaded)
     - Treatment: --plugin-dir <dir> (skill loaded via plugin wrapper)
-    Lite mode adds: --max-turns 1
     """
     resolved_model = resolve_model(model)
 
@@ -118,9 +116,6 @@ def run_session(
         "--max-budget-usd", str(budget),
         "-p", prompt,
     ]
-
-    if mode == "lite":
-        cmd.extend(["--max-turns", "1"])
 
     if condition == "control":
         cmd.append("--disable-slash-commands")
@@ -317,7 +312,6 @@ def run_all_scenarios(
     model: str = "sonnet",
     budget: float = 0.50,
     timeout: int = 300,
-    mode: str = "lite",
 ) -> list[tuple[dict, dict]]:
     """Run all scenarios, each in control + treatment. Returns pairs."""
     results_dir = os.path.join(output_dir, "sessions")
@@ -346,7 +340,6 @@ def run_all_scenarios(
             model=model,
             budget=budget,
             timeout=timeout,
-            mode=mode,
         )
         print(" done")
 
@@ -361,7 +354,6 @@ def run_all_scenarios(
             model=model,
             budget=budget,
             timeout=timeout,
-            mode=mode,
         )
         print(" done")
 
