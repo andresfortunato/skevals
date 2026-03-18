@@ -1,6 +1,6 @@
 # Plan: Zero Dep Refactor
 
-Phase: 4 — Tests + cleanup
-Current task: Update tests, remove src/skevals/, clean pyproject.toml
+Phase: complete
+Current task: —
 Blocked: no
 Last updated: 2026-03-18

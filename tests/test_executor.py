@@ -1,6 +1,6 @@
-"""Tests for the session executor."""
+"""Tests for the session executor (now in runner.py)."""
 
-from skevals.runner.executor import _analyze_output_composition, _parse_claude_output
+from runner import _analyze_output_composition, _parse_claude_output
 
 
 def test_parse_claude_output(sample_claude_output: dict) -> None:
@@ -8,26 +8,26 @@ def test_parse_claude_output(sample_claude_output: dict) -> None:
     import json
     output = _parse_claude_output(json.dumps(sample_claude_output))
 
-    assert "sample output" in output.result_text
-    assert output.session_id == "test-session-123"
-    assert output.duration_ms == 5000
-    assert output.total_cost_usd == 0.0123
-    assert output.usage.input_tokens == 1500
-    assert output.usage.output_tokens == 200
-    assert output.usage.cache_read_tokens == 500
-    assert output.usage.cache_creation_tokens == 0
+    assert "sample output" in output["result_text"]
+    assert output["session_id"] == "test-session-123"
+    assert output["duration_ms"] == 5000
+    assert output["total_cost_usd"] == 0.0123
+    assert output["usage"]["input_tokens"] == 1500
+    assert output["usage"]["output_tokens"] == 200
+    assert output["usage"]["cache_read_tokens"] == 500
+    assert output["usage"]["cache_creation_tokens"] == 0
 
 
 def test_parse_claude_output_empty() -> None:
     """_parse_claude_output handles empty input."""
     output = _parse_claude_output("")
-    assert output.result_text == "[EMPTY OUTPUT]"
+    assert output["result_text"] == "[EMPTY OUTPUT]"
 
 
 def test_parse_claude_output_plain_text() -> None:
     """_parse_claude_output handles non-JSON text."""
     output = _parse_claude_output("Just some plain text")
-    assert output.result_text == "Just some plain text"
+    assert output["result_text"] == "Just some plain text"
 
 
 def test_analyze_output_composition() -> None:

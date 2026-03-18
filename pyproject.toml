@@ -1,28 +1,18 @@
 [project]
 name = "skevals"
-version = "0.1.0"
-description = "A/B testing CLI for Claude Code skills — measures whether skills improve output quality and at what cost"
+version = "0.2.0"
+description = "A/B testing CLI for Claude Code skills — zero-dependency, runs with Python stdlib only"
 readme = "README.md"
 authors = [
     { name = "Andres Fortunato", email = "andfortu@gmail.com" }
 ]
 requires-python = ">=3.12"
-dependencies = [
-    "typer>=0.15",
-    "anthropic>=0.52",
-    "pydantic>=2.0",
-    "rich>=13.0",
-    "python-dotenv>=1.2.2",
-]
-
-[project.scripts]
-skevals = "skevals.cli:app"
+dependencies = []
 
 [dependency-groups]
 dev = [
     "pytest>=8.0",
 ]
 
-[build-system]
-requires = ["uv_build>=0.9.7,<0.10.0"]
-build-backend = "uv_build"
+[tool.pytest.ini_options]
+testpaths = ["tests"]
