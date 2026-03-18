@@ -163,62 +163,71 @@ def _cli_call(
     resolved = resolve_model(model)
     schema_str = json.dumps(schema, separators=(",", ":"))
 
-    cmd = [
-        "claude",
-        "--print",
-        "--output-format", "json",
-        "--model", resolved,
-        "--max-turns", "2",
-        "--json-schema", schema_str,
-        "-p", prompt,
-    ]
-    if system:
-        cmd.extend(["--system-prompt", system])
-
     # Strip CLAUDE* env vars so the subprocess doesn't inherit plugin context
     env = {k: v for k, v in os.environ.items() if not k.startswith("CLAUDE")}
-    # Ensure PATH is preserved
     if "PATH" not in env:
         env["PATH"] = os.environ.get("PATH", "/usr/bin:/bin")
 
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        timeout=300,
-        env=env,
-    )
+    # Retry with increasing max-turns if structured output is missing.
+    # --json-schema needs at least 2 turns (one for reasoning, one for tool call).
+    # Larger prompts sometimes need 3+.
+    last_error = None
+    for max_turns in (3, 5):
+        cmd = [
+            "claude",
+            "--print",
+            "--output-format", "json",
+            "--model", resolved,
+            "--max-turns", str(max_turns),
+            "--json-schema", schema_str,
+            "-p", prompt,
+        ]
+        if system:
+            cmd.extend(["--system-prompt", system])
 
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"claude CLI failed (exit {result.returncode}):\n{result.stderr[:500]}"
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=300,
+            env=env,
         )
 
-    response = json.loads(result.stdout)
+        if result.returncode != 0:
+            last_error = RuntimeError(
+                f"claude CLI failed (exit {result.returncode}):\n{result.stderr[:500]}"
+            )
+            continue
 
-    # Check for errors in the response
-    if response.get("is_error"):
-        errors = response.get("errors") or response.get("result", "Unknown error")
-        raise RuntimeError(f"claude CLI returned an error: {errors}")
+        response = json.loads(result.stdout)
 
-    # --json-schema puts validated output in "structured_output"
-    structured = response.get("structured_output")
-    if structured is not None:
-        if isinstance(structured, str):
-            structured = json.loads(structured)
-        return _fix_stringified_json(structured)
+        # Check for errors in the response
+        if response.get("is_error"):
+            errors = response.get("errors") or response.get("result", "Unknown error")
+            last_error = RuntimeError(f"claude CLI returned an error: {errors}")
+            continue
 
-    # Fallback: try to parse result_text as JSON
-    result_text = response.get("result", "")
-    if result_text:
-        try:
-            return _fix_stringified_json(json.loads(result_text))
-        except (json.JSONDecodeError, ValueError):
-            pass
+        # --json-schema puts validated output in "structured_output"
+        structured = response.get("structured_output")
+        if structured is not None:
+            if isinstance(structured, str):
+                structured = json.loads(structured)
+            return _fix_stringified_json(structured)
 
-    raise ValueError(
-        f"No structured output in CLI response. Keys: {list(response.keys())}"
-    )
+        # Fallback: try to parse result_text as JSON
+        result_text = response.get("result", "")
+        if result_text:
+            try:
+                return _fix_stringified_json(json.loads(result_text))
+            except (json.JSONDecodeError, ValueError):
+                pass
+
+        last_error = ValueError(
+            f"No structured output (max_turns={max_turns}). "
+            f"Keys: {list(response.keys())}, stop_reason: {response.get('stop_reason')}"
+        )
+
+    raise last_error  # type: ignore[misc]
 
 
 # ---------------------------------------------------------------------------

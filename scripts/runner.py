@@ -63,7 +63,7 @@ def _create_plugin_wrapper(skill_path: str, plugin_dir: str) -> str:
         skills/
           <skill_name>/  -> symlink to actual skill dir
     """
-    skill_name = os.path.basename(skill_path)
+    skill_name = os.path.basename(os.path.normpath(skill_path))
 
     plugin_meta_dir = os.path.join(plugin_dir, ".claude-plugin")
     os.makedirs(plugin_meta_dir, exist_ok=True)
