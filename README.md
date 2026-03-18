@@ -1,113 +1,65 @@
 # skevals
 
-A/B testing CLI for Claude Code skills. Measures whether skills actually improve output quality, and at what token/cost overhead.
+> **Status: Experimental — results inconclusive.** The synthetic A/B testing approach described below does not produce reliable signal. See [Findings](#findings) for details. The next iteration will use a trace-based monitoring approach instead.
 
-## What it does
+An experiment in evaluating Claude Code skills. Attempts to measure whether skills actually improve output quality by running identical tasks with and without a skill loaded, then using LLM-as-judge to score results.
 
-skevals runs identical tasks through Claude with and without a skill loaded, then uses LLM-as-judge to score the results. It produces a comparison report with per-dimension rubric scores, blind pairwise rankings, and context health analysis.
+## Findings
+
+After building and testing the full pipeline, we found that **synthetic A/B evals don't work for skills**:
+
+1. **`claude --print` doesn't match real usage.** Skills are designed for interactive sessions — Claude asks questions, the user responds, work evolves. In `--print` mode there's no user to interact with. Treatment Claude (with skill) asks for permission and clarification. Control Claude (no skill) just does the work. We end up measuring "which Claude performs better non-interactively" — which is irrelevant.
+
+2. **The A/B comparison is structurally unfair.** Skills that make Claude more collaborative (asking before writing, checking understanding) get penalized because there's nobody to collaborate with. Well-designed skills score *worse* than no skill.
+
+3. **Triple-LLM noise.** LLM generates scenarios → LLM runs them → LLM judges results. Each layer adds noise. Signal-to-noise ratio is poor.
+
+4. **Concrete example:** Evaluating the TDD skill, control scored 4.13 vs treatment 1.77. Treatment Claude spent its response asking "Should I proceed?" while control Claude dove straight into comprehensive TDD planning. The skill was penalized for being interactive.
+
+### What might actually work
+
+**Trace-based monitoring**: Instead of synthetic evals, capture real Claude Code session traces during normal usage. Run with and without skills over time, then analyze traces post-factum. This evaluates skills in the environment they're designed for — real interactive sessions with real users.
 
 ## Install
 
-### As a Claude Code plugin (recommended)
+### As a Claude Code plugin
 
 ```bash
-# Add the marketplace
-/plugin marketplace add andresfortunato/skevals
-
-# Install the plugin
-/plugin install skevals
+claude plugin install github:andresfortunato/skevals
 ```
 
-Then use it from any Claude Code session — Claude will invoke skevals automatically when you ask to evaluate a skill, or you can call it directly with `/skevals`.
-
-### As a standalone CLI
+### Standalone
 
 ```bash
 git clone https://github.com/andresfortunato/skevals.git
 cd skevals
-uv sync
 ```
 
-Both methods require `ANTHROPIC_API_KEY` in your environment or a `.env` file.
+No dependencies required — runs with Python stdlib only.
 
 ## Usage
 
-### Full pipeline (recommended)
-
 ```bash
-# Lite mode (default) — fast, cheap, single-turn text evaluation
-skevals eval ~/.claude/skills/web-scraping/ --scenarios 3
+# Full pipeline (3 scenarios by default)
+python3 scripts/skevals.py eval <skill-path> --scenarios 3
 
-# Full mode — multi-turn with tool use, thorough but expensive
-skevals eval ~/.claude/skills/web-scraping/ --scenarios 3 --full
+# Individual steps
+python3 scripts/skevals.py analyze <skill-path>
+python3 scripts/skevals.py generate analysis.json --count 3
+python3 scripts/skevals.py run scenarios.json <skill-path>
+python3 scripts/skevals.py judge results/ --analysis-path analysis.json
+python3 scripts/skevals.py report judgments.json results/
 ```
 
-### Step-by-step
-
-```bash
-skevals analyze <skill-path>                      # -> analysis.json
-skevals generate analysis.json --count 6          # -> scenarios.json
-skevals run scenarios.json <skill-path>           # -> results/
-skevals judge results/ --analysis-path analysis.json  # -> judgments.json
-skevals report judgments.json results/             # -> report.md
-```
-
-### Key options
+### Options
 
 | Flag | Description |
 |------|-------------|
-| `--lite` | Single-turn, text-only, truncated judge input (default) |
-| `--full` | Multi-turn, tool use, full judge input |
-| `--judge-model <model>` | Override judge model (default: same as `--model`) |
-| `--model <model>` | Model for analysis, generation, and CLI sessions |
+| `--model <model>` | Model alias: sonnet, opus, haiku (default: sonnet) |
+| `--judge-model <model>` | Override judge model |
 | `--budget <usd>` | Max budget per CLI session (default: 0.50) |
-| `--scenarios <n>` | Number of test scenarios to generate |
-
-## Evaluation modes
-
-### Lite mode (default)
-
-- `--max-turns 1` on Claude CLI sessions — single-turn text responses only
-- Scenarios constrained to questions answerable without file creation
-- Judge input truncated to 8K chars, output capped at 2048 tokens
-- Tests **knowledge and approach quality**
-
-### Full mode
-
-- Unrestricted Claude CLI sessions with tool use
-- Scenarios can involve file creation, multi-step workflows
-- Full outputs sent to judge, no truncation
-- Tests **execution quality and tool-use behavior**
-
-Both modes use the same `--model` for judging by default (sonnet). Override with `--judge-model haiku` for cheaper judging.
-
-## Baseline results
-
-### web-scraping skill (3 scenarios, sonnet runner)
-
-**Lite mode** (haiku judge):
-
-| Metric | Control | Treatment | Delta |
-|--------|---------|-----------|-------|
-| Overall Score | 1.30 | 1.45 | +0.15 |
-| Cost (USD) | $0.050 | $0.077 | +$0.027 |
-| CLI tokens | ~47K/session | ~24K/session | -49% |
-| Pairwise | 0 wins | 0 wins | 3 ties |
-
-Total CLI tokens: 142,644. Total cost: ~$0.46 (CLI + SDK).
-
-**Full mode:**
-
-| Metric | Control | Treatment | Delta |
-|--------|---------|-----------|-------|
-| Overall Score | 1.84 | 1.74 | -0.10 |
-| Cost (USD) | $0.265 | $0.239 | -$0.026 |
-| CLI tokens | ~154K/session | ~154K/session | ~0% |
-| Pairwise | 1 win | 1 win | 1 tie |
-
-Total CLI tokens: 921,670. Total cost: ~$1.49.
-
-Context health warning in full mode: "Treatment output is 100% prose vs 64% for control — skill may cause over-explaining."
+| `--scenarios <n>` | Number of test scenarios (default: 3) |
+| `--backend api\|cli` | Force LLM backend (default: auto-detect) |
 
 ## Architecture
 
@@ -117,33 +69,29 @@ skevals eval <skill-path>
   ├─ 1. Analyze ─── parse SKILL.md + LLM → capabilities + eval dimensions
   ├─ 2. Generate ── LLM → N scenarios with prompts + workspace files
   ├─ 3. Run ─────── claude CLI × 2N sessions (control + treatment)
-  ├─ 4. Judge ───── rubric scoring (per-dimension 1-5) + pairwise A/B
+  ├─ 4. Judge ───── combined rubric + blind pairwise (1 call per scenario)
   └─ 5. Report ──── stats + context health + LLM verdict → report.md
 ```
-
-**A/B control mechanism:**
-- Control: `claude --print --disable-slash-commands` (no skills)
-- Treatment: `claude --print --plugin-dir <wrapped-skill>` (skill loaded)
-- Both strip `CLAUDECODE` env var to allow nesting inside Claude Code
 
 ## Project structure
 
 ```
-src/skevals/
-├── cli.py              # Typer app with 6 commands
-├── config.py           # EvalMode enum, model aliases, defaults
-├── models/             # Pydantic models (skill, scenario, session, judge, report)
-├── analyzer/           # Skill parsing + LLM analysis
-├── generator/          # Scenario generation
-├── runner/             # Workspace, executor (Claude CLI subprocess), orchestrator
-├── judge/              # Rubric scoring + blind pairwise comparison
-├── reporter/           # Stats aggregation + markdown report
-└── llm/                # Anthropic SDK wrapper with structured output
+scripts/
+├── skevals.py      # argparse CLI, 6 subcommands
+├── backend.py      # Dual LLM backend (urllib API / claude CLI)
+├── schemas.py      # JSON Schema definitions for structured output
+├── analyzer.py     # Skill parsing + LLM analysis
+├── generator.py    # Scenario generation
+├── runner.py       # Workspace creation + Claude CLI execution + orchestrator
+├── judge.py        # Combined rubric scoring + blind pairwise comparison
+└── reporter.py     # Stats aggregation + context health + markdown report
 ```
+
+Zero external dependencies. All stdlib Python.
 
 ## Development
 
 ```bash
-uv run pytest           # 9 unit tests
-uv run skevals --help   # all commands
+uv run pytest tests/ -v    # 25 unit tests
+python3 scripts/skevals.py --help
 ```
